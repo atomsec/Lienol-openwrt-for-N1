@@ -43,6 +43,7 @@ jobs:
         sudo add-apt-repository ppa:longsleep/golang-backports
         sudo apt update
         sudo apt install golang-go
+        go version
 
     - name: Clone source code
       working-directory: /workdir
@@ -64,6 +65,17 @@ jobs:
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
+    - name: Modify feeds and remove conflicting packages
+      run: |
+        cd openwrt
+        rm -rf feeds/luci/applications/luci-app-mosdns
+        rm -rf feeds/packages/net/{alist,adguardhome,mosdns,xray*,v2ray*,v2ray*,sing*,smartdns}
+        rm -rf feeds/packages/utils/v2dat
+        rm -rf feeds/packages/lang/golang
+        git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
+        ./scripts/feeds install -a
+
+
     - name: Load custom configuration
       run: |
         [ -e files ] && mv files openwrt/files
@@ -80,6 +92,12 @@ jobs:
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
+
+    - name: Set environment variables for Go
+      run: |
+        echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+        echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
+        echo "PATH=$(go env GOROOT)/bin:$PATH" >> $GITHUB_ENV
 
     - name: Compile the firmware
       id: compile
